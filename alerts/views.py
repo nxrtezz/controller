@@ -44,26 +44,15 @@ def rule_create(request):
         except Exception:
             messages.error(request, "Bustimes could not be reached. Please try the operator's NOC instead.")
     if request.method == "POST":
-        posted_operator = Operator.objects.filter(pk=request.POST.get("operator")).first()
+        posted_operator = Operator.objects.filter(noc=request.POST.get("operator")).first()
         form = RuleForm(request.POST, initial={"operator": posted_operator} if posted_operator else {}, catalogue_all=catalogue_all)
         if form.is_valid():
-            try:
-                rule = form.save(commit=False)
-                if posted_operator and not rule.operator:
-                    rule.operator = posted_operator
-                rule.save()
-                form.save_m2m()
-                messages.success(request, f'Rule "{rule.name}" is now watching {rule.operator.name}.')
-                return redirect("rule_list")
-            except Exception as e:
-                messages.error(request, f"Error saving rule: {str(e)}")
-        else:
-            # Form is invalid, show errors
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
+            rule = form.save(); messages.success(request, f'Rule “{rule.name}” is now watching {rule.operator.name}.')
+            return redirect("rule_list")
     else: form = RuleForm(initial={"operator": operator} if operator else {}, catalogue_all=catalogue_all)
     return render(request, "alerts/rule_form.html", {"form": form, "operator": operator, "page_title": "Create rule", "catalogue_all": catalogue_all, "search_term": search_term, "search_results": search_results})
+
+
 @login_required
 def operator_select(request, noc):
     """Import a selected Bustimes operator and take the user straight to rule definition."""
