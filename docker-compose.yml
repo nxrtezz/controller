@@ -6,7 +6,8 @@ services:
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-before-production}
       DJANGO_DEBUG: "0"
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      # Default covers this machine and its current LAN address; set a trusted-host list in .env for production.
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,192.168.1.106}
       DATABASE_PATH: /data/controller.sqlite3
     volumes:
       - controller_data:/data
