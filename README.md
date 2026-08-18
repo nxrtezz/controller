@@ -12,6 +12,8 @@ Controller is a Django web app for Bustimes-based bus alerts. It uses rule cards
 
 The web UI listens on port **8417**. The monitor service discovers active-rule operators automatically, polls `vehicles.json` every two minutes, and refreshes fleet and services every ten minutes.
 
+Static assets are served by WhiteNoise directly from the Django container, so no separate web server is required.
+
 When no `.env` value is supplied, Docker permits `localhost`, `127.0.0.1`, and the current LAN address (`192.168.1.106`). Set `DJANGO_ALLOWED_HOSTS` explicitly if your LAN address changes or before exposing Controller beyond a trusted network.
 
 ## Development
