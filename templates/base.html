@@ -1,0 +1,7 @@
+{% load static %}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Controller{% endblock %}</title><link rel="stylesheet" href="{% static 'alerts/controller.css' %}"></head>
+<body>
+  <header class="topbar"><a class="brand" href="{% url 'rule_list' %}"><span class="brand-mark">C</span> Controller</a>{% if user.is_authenticated %}<nav><a href="{% url 'rule_list' %}">Defined rules</a><a href="{% url 'operator_list' %}">Operators</a><a href="{% url 'activity' %}">Activity</a><a href="{% url 'settings' %}">Settings</a></nav><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Log out</button></form>{% endif %}</header>
+  <main class="container">{% if messages %}{% for message in messages %}<div class="notice">{{ message }}</div>{% endfor %}{% endif %}{% block content %}{% endblock %}</main>
+</body></html>

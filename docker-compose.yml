@@ -1,0 +1,33 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8417:8417"
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-before-production}
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DATABASE_PATH: /data/controller.sqlite3
+    volumes:
+      - controller_data:/data
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      gunicorn controller.wsgi:application --bind 0.0.0.0:8417 --workers 3"
+    restart: unless-stopped
+
+  monitor:
+    build: .
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-before-production}
+      DJANGO_DEBUG: "0"
+      DATABASE_PATH: /data/controller.sqlite3
+    volumes:
+      - controller_data:/data
+    command: sh -c "python manage.py migrate --noinput && python manage.py monitor_bustimes"
+    restart: unless-stopped
+    depends_on:
+      - web
+
+volumes:
+  controller_data:
