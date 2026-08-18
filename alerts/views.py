@@ -5,6 +5,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from .forms import RuleForm
 from .models import AlertEvent, Operator, Rule, Service, Vehicle
@@ -22,13 +23,42 @@ def rule_create(request):
     noc = request.GET.get("operator")
     catalogue_all = request.GET.get("catalogue") == "all"
     operator = Operator.objects.filter(noc=noc).first() if noc else None
+    search_term, search_results = request.GET.get("search", "").strip(), []
+    if search_term and not operator:
+        try:
+            search_results = api_get("https://bustimes.org/api/operators/", {"search": search_term}).get("results", [])
+        except Exception:
+            messages.error(request, "Bustimes could not be reached. Please try the operator's NOC instead.")
     if request.method == "POST":
         form = RuleForm(request.POST, catalogue_all=catalogue_all)
         if form.is_valid():
             rule = form.save(); messages.success(request, f'Rule “{rule.name}” is now watching {rule.operator.name}.')
             return redirect("rule_list")
     else: form = RuleForm(initial={"operator": operator} if operator else {}, catalogue_all=catalogue_all)
-    return render(request, "alerts/rule_form.html", {"form": form, "operator": operator, "page_title": "Create rule", "catalogue_all": catalogue_all})
+    return render(request, "alerts/rule_form.html", {"form": form, "operator": operator, "page_title": "Create rule", "catalogue_all": catalogue_all, "search_term": search_term, "search_results": search_results})
+
+
+@login_required
+def operator_select(request, noc):
+    """Import a selected Bustimes operator and take the user straight to rule definition."""
+    operator = Operator.objects.filter(noc=noc).first()
+    if not operator:
+        try:
+            rows = api_get("https://bustimes.org/api/operators/", {"search": noc}).get("results", [])
+            match = next((row for row in rows if row.get("noc") == noc), None)
+            if match:
+                operator = upsert_operator(match)
+        except Exception:
+            operator = None
+    if not operator:
+        messages.error(request, "That operator could not be found in Bustimes.")
+        return redirect("rule_create")
+    try:
+        vehicles, services = sync_operator_fleet(noc), sync_operator_services(noc)
+        messages.success(request, f"Imported {vehicles} vehicles and {services} routes for {operator.name}.")
+    except Exception:
+        messages.warning(request, f"{operator.name} was selected, but its current fleet data could not be imported. You can still create the rule.")
+    return redirect(f"{reverse('rule_create')}?operator={noc}")
 
 
 @login_required

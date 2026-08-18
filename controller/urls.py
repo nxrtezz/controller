@@ -9,6 +9,7 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("", views.rule_list, name="rule_list"),
     path("rules/new/", views.rule_create, name="rule_create"),
+    path("rules/operator/<str:noc>/select/", views.operator_select, name="operator_select"),
     path("rules/<int:pk>/edit/", views.rule_edit, name="rule_edit"),
     path("rules/<int:pk>/toggle/", views.rule_toggle, name="rule_toggle"),
     path("rules/<int:pk>/activity/", views.rule_activity, name="rule_activity"),
