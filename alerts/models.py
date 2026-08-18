@@ -6,7 +6,7 @@ class Operator(models.Model):
     noc = models.CharField(max_length=16, primary_key=True)
     slug = models.SlugField(max_length=120, blank=True)
     name = models.CharField(max_length=255)
-    region_id = models.CharField(max_length=12, blank=True)
+    region_id = models.CharField(max_length=12, blank=True, null=True)
     vehicle_mode = models.CharField(max_length=20, default="bus")
     raw_data = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

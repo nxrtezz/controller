@@ -26,11 +26,26 @@ def rule_create(request):
     search_term, search_results = request.GET.get("search", "").strip(), []
     if search_term and not operator:
         try:
-            search_results = api_get("https://bustimes.org/api/operators/", {"search": search_term}).get("results", [])
+            # Fetch all operators (API ignores search parameter, so we filter client-side)
+            payload = api_get("https://bustimes.org/api/operators/")
+            all_results = payload.get("results", [])
+            
+            # Handle pagination if needed
+            while payload.get("next"):
+                payload = api_get(payload["next"])
+                all_results.extend(payload.get("results", []))
+            
+            # Filter results by name or NOC (case-insensitive)
+            search_term_lower = search_term.lower()
+            search_results = [
+                r for r in all_results 
+                if search_term_lower in r.get("name", "").lower() or search_term_lower in r.get("noc", "").lower()
+            ][:50]  # Limit to 50 results
         except Exception:
             messages.error(request, "Bustimes could not be reached. Please try the operator's NOC instead.")
     if request.method == "POST":
-        form = RuleForm(request.POST, catalogue_all=catalogue_all)
+        posted_operator = Operator.objects.filter(pk=request.POST.get("operator")).first()
+        form = RuleForm(request.POST, initial={"operator": posted_operator} if posted_operator else {}, catalogue_all=catalogue_all)
         if form.is_valid():
             rule = form.save(); messages.success(request, f'Rule “{rule.name}” is now watching {rule.operator.name}.')
             return redirect("rule_list")
@@ -44,8 +59,17 @@ def operator_select(request, noc):
     operator = Operator.objects.filter(noc=noc).first()
     if not operator:
         try:
-            rows = api_get("https://bustimes.org/api/operators/", {"search": noc}).get("results", [])
-            match = next((row for row in rows if row.get("noc") == noc), None)
+            # Fetch all operators (API ignores search parameter, so we filter client-side)
+            payload = api_get("https://bustimes.org/api/operators/")
+            all_results = payload.get("results", [])
+            
+            # Handle pagination if needed
+            while payload.get("next"):
+                payload = api_get(payload["next"])
+                all_results.extend(payload.get("results", []))
+            
+            # Find the specific operator by NOC
+            match = next((row for row in all_results if row.get("noc") == noc), None)
             if match:
                 operator = upsert_operator(match)
         except Exception:
@@ -136,11 +160,26 @@ def settings_view(request): return render(request, "alerts/settings.html")
 
 @login_required
 def operator_search(request):
-    term = request.GET.get("q", "").strip()
+    term = request.GET.get("q", "").strip().lower()
     if not term: return JsonResponse({"results": []})
     try:
-        payload = api_get("https://bustimes.org/api/operators/", {"search": term})
-        results = payload.get("results", [])
+        # Fetch all operators (API ignores search parameter, so we filter client-side)
+        payload = api_get("https://bustimes.org/api/operators/")
+        all_results = payload.get("results", [])
+        
+        # Handle pagination if needed
+        while payload.get("next"):
+            payload = api_get(payload["next"])
+            all_results.extend(payload.get("results", []))
+        
+        # Filter results by name or NOC (case-insensitive)
+        filtered_results = [
+            r for r in all_results 
+            if term in r.get("name", "").lower() or term in r.get("noc", "").lower()
+        ]
+        
+        # Limit to 50 results to avoid overwhelming the client
+        results = filtered_results[:50]
     except Exception:
         results = []
     return JsonResponse({"results": [{"noc": r.get("noc"), "name": r.get("name"), "slug": r.get("slug")} for r in results]})
@@ -152,8 +191,17 @@ def operator_fleet(request, noc):
     operator = Operator.objects.filter(noc=noc).first()
     if not operator:
         try:
-            rows = api_get("https://bustimes.org/api/operators/", {"search": noc}).get("results", [])
-            match = next((r for r in rows if r.get("noc") == noc), None)
+            # Fetch all operators (API ignores search parameter, so we filter client-side)
+            payload = api_get("https://bustimes.org/api/operators/")
+            all_results = payload.get("results", [])
+            
+            # Handle pagination if needed
+            while payload.get("next"):
+                payload = api_get(payload["next"])
+                all_results.extend(payload.get("results", []))
+            
+            # Find the specific operator by NOC
+            match = next((r for r in all_results if r.get("noc") == noc), None)
             if match: operator = upsert_operator(match)
         except Exception: pass
     if not operator: return JsonResponse({"error": "Operator was not found."}, status=404)

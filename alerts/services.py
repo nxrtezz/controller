@@ -46,7 +46,7 @@ def upsert_livery(data):
 
 def upsert_operator(data):
     noc = data.get("noc") or data.get("id")
-    return Operator.objects.update_or_create(noc=noc, defaults={"name": data.get("name", noc), "slug": data.get("slug", ""), "region_id": data.get("region_id", ""), "vehicle_mode": data.get("vehicle_mode", "bus"), "raw_data": data})[0]
+    return Operator.objects.update_or_create(noc=noc, defaults={"name": data.get("name", noc), "slug": data.get("slug", ""), "region_id": data.get("region_id") or "", "vehicle_mode": data.get("vehicle_mode", "bus"), "raw_data": data})[0]
 
 
 def sync_operator_fleet(noc):
@@ -90,8 +90,10 @@ def rule_matches_tracking(rule, item):
     line = (item.get("service") or {}).get("line_name", "")
     service_url = ((item.get("service") or {}).get("url") or "").rstrip("/")
     service_slug = service_url.split("/")[-1]
-    if rule.services.exists() and not rule.services.filter(slug=service_slug).exists(): return False
-    if rule.custom_lines and line not in rule.custom_lines: return False
+    if rule.services.exists() or rule.custom_lines:
+        saved_service_matches = rule.services.filter(slug=service_slug).exists()
+        custom_line_matches = line in rule.custom_lines
+        if not (saved_service_matches or custom_line_matches): return False
     return True
 
 
